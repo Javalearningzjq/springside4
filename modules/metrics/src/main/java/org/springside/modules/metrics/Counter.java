@@ -9,12 +9,21 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.springside.modules.metrics.utils.Clock;
 
+/**
+ * Counter类型, 主要用于计算TPS，
+ * 报告Report间隔时间内的Counter变化值及平均TPS，以及服务从启动到现在的Counter总值和平均TPS.
+ * 
+ * @author Calvin
+ */
 public class Counter {
 	public static Clock clock = Clock.DEFAULT;
+
+	public CounterMetric snapshot = new CounterMetric();
 
 	private AtomicLong counter = new AtomicLong(0);
 
 	private long totalCount = 0L;
+	private long startTime;
 	private long lastReportTime;
 
 	public Counter() {
@@ -44,6 +53,9 @@ public class Counter {
 		CounterMetric metric = new CounterMetric();
 
 		totalCount += lastCount;
+		long totalElapsed = currentTime - startTime;
+		metric.meanRate = (totalCount * 1000) / totalElapsed;
+
 		metric.lastCount = lastCount;
 		metric.totalCount = totalCount;
 
@@ -53,6 +65,15 @@ public class Counter {
 		}
 
 		lastReportTime = currentTime;
+
+		snapshot = metric;
+
 		return metric;
+	}
+
+	@Override
+	public String toString() {
+		return "Counter [counter=" + counter + ", totalCount=" + totalCount + ", startTime=" + startTime
+				+ ", lastReportTime=" + lastReportTime + "]";
 	}
 }

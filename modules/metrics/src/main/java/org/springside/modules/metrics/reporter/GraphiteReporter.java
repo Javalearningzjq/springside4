@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  *******************************************************************************/
-package org.springside.modules.metrics.report;
+package org.springside.modules.metrics.reporter;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -21,10 +21,13 @@ import javax.net.SocketFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springside.modules.metrics.Counter;
 import org.springside.modules.metrics.CounterMetric;
-import org.springside.modules.metrics.ExecutionMetric;
+import org.springside.modules.metrics.Histogram;
 import org.springside.modules.metrics.HistogramMetric;
 import org.springside.modules.metrics.MetricRegistry;
+import org.springside.modules.metrics.Timer;
+import org.springside.modules.metrics.TimerMetric;
 
 public class GraphiteReporter implements Reporter {
 
@@ -51,22 +54,21 @@ public class GraphiteReporter implements Reporter {
 	}
 
 	@Override
-	public void report(Map<String, CounterMetric> counters, Map<String, HistogramMetric> histograms,
-			Map<String, ExecutionMetric> executions) {
+	public void report(Map<String, Counter> counters, Map<String, Histogram> histograms, Map<String, Timer> timers) {
 		try {
 			connect();
 			long timestamp = System.currentTimeMillis() / 1000;
 
-			for (Map.Entry<String, CounterMetric> entry : counters.entrySet()) {
-				reportCounter(entry.getKey(), entry.getValue(), timestamp);
+			for (Map.Entry<String, Counter> entry : counters.entrySet()) {
+				reportCounter(entry.getKey(), entry.getValue().snapshot, timestamp);
 			}
 
-			for (Map.Entry<String, HistogramMetric> entry : histograms.entrySet()) {
-				reportHistogram(entry.getKey(), entry.getValue(), timestamp);
+			for (Map.Entry<String, Histogram> entry : histograms.entrySet()) {
+				reportHistogram(entry.getKey(), entry.getValue().snapshot, timestamp);
 			}
 
-			for (Map.Entry<String, ExecutionMetric> entry : executions.entrySet()) {
-				reportExecution(entry.getKey(), entry.getValue(), timestamp);
+			for (Map.Entry<String, Timer> entry : timers.entrySet()) {
+				reportTimer(entry.getKey(), entry.getValue().snapshot, timestamp);
 			}
 
 			flush();
@@ -95,13 +97,13 @@ public class GraphiteReporter implements Reporter {
 		}
 	}
 
-	private void reportExecution(String name, ExecutionMetric execution, long timestamp) throws IOException {
-		send(MetricRegistry.name(prefix, name, "count"), format(execution.counterMetric.lastCount), timestamp);
+	private void reportTimer(String name, TimerMetric timer, long timestamp) throws IOException {
+		send(MetricRegistry.name(prefix, name, "count"), format(timer.counterMetric.lastCount), timestamp);
 
-		send(MetricRegistry.name(prefix, name, "min"), format(execution.histogramMetric.min), timestamp);
-		send(MetricRegistry.name(prefix, name, "max"), format(execution.histogramMetric.max), timestamp);
-		send(MetricRegistry.name(prefix, name, "mean"), format(execution.histogramMetric.mean), timestamp);
-		for (Entry<Double, Long> pct : execution.histogramMetric.pcts.entrySet()) {
+		send(MetricRegistry.name(prefix, name, "min"), format(timer.histogramMetric.min), timestamp);
+		send(MetricRegistry.name(prefix, name, "max"), format(timer.histogramMetric.max), timestamp);
+		send(MetricRegistry.name(prefix, name, "mean"), format(timer.histogramMetric.mean), timestamp);
+		for (Entry<Double, Long> pct : timer.histogramMetric.pcts.entrySet()) {
 			send(MetricRegistry.name(prefix, name, format(pct.getKey()).replace('.', '_')), format(pct.getValue()),
 					timestamp);
 		}
